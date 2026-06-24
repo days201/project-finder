@@ -1,8 +1,10 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const SearchEngine = require('./search');
+const RecentProjectsStorage = require('./storage');
 
 const searchEngine = new SearchEngine();
+const storage = new RecentProjectsStorage();
 
 let mainWindow;
 
@@ -77,4 +79,34 @@ ipcMain.handle('search-projects', async (event, drive, query) => {
 ipcMain.handle('clear-cache', async () => {
   searchEngine.clearCache();
   return { success: true };
+});
+
+// IPC handler for getting recent projects
+ipcMain.handle('get-recent-projects', async () => {
+  try {
+    const projects = await storage.getRecent();
+    return { success: true, projects };
+  } catch (error) {
+    return { success: false, error: error.message, projects: [] };
+  }
+});
+
+// IPC handler for adding recent project
+ipcMain.handle('add-recent-project', async (event, project) => {
+  try {
+    const projects = await storage.addRecent(project);
+    return { success: true, projects };
+  } catch (error) {
+    return { success: false, error: error.message, projects: [] };
+  }
+});
+
+// IPC handler for clearing recent projects
+ipcMain.handle('clear-recent-projects', async () => {
+  try {
+    const projects = await storage.clearRecent();
+    return { success: true, projects };
+  } catch (error) {
+    return { success: false, error: error.message, projects: [] };
+  }
 });
