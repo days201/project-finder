@@ -1,5 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const SearchEngine = require('./search');
+
+const searchEngine = new SearchEngine();
 
 let mainWindow;
 
@@ -58,4 +61,20 @@ ipcMain.handle('check-drive', async (event, drive) => {
   } catch (error) {
     return { accessible: false, error: error.message };
   }
+});
+
+// IPC handler for searching projects
+ipcMain.handle('search-projects', async (event, drive, query) => {
+  try {
+    const results = await searchEngine.search(drive, query);
+    return { success: true, results };
+  } catch (error) {
+    return { success: false, error: error.message, results: [] };
+  }
+});
+
+// IPC handler for clearing search cache
+ipcMain.handle('clear-cache', async () => {
+  searchEngine.clearCache();
+  return { success: true };
 });
