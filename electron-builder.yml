@@ -1,0 +1,11 @@
+appId: com.bpa.project-finder
+productName: Project Finder
+directories:
+  output: dist
+win:
+  target: portable
+  icon: assets/icon.ico
+files:
+  - src/renderer/**/*
+  - src/main/**/*
+  - package.json
