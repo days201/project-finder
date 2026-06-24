@@ -8,6 +8,7 @@ import DriveSelector from './components/DriveSelector';
 import SearchInput from './components/SearchInput';
 import SearchResults from './components/SearchResults';
 import RecentProjects from './components/RecentProjects';
+import ErrorAlert from './components/ErrorAlert';
 
 const theme = createTheme({
   palette: {
@@ -29,6 +30,7 @@ function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentProjects, setRecentProjects] = useState([]);
+  const [error, setError] = useState(null);
 
   const formatHint = useMemo(() => {
     if (selectedDrive === 'G:' || selectedDrive === 'R:') {
@@ -60,6 +62,7 @@ function App() {
 
   const handleSearch = useCallback(async (query) => {
     setSearchQuery(query);
+    setError(null);
 
     if (!query || query.trim() === '') {
       setSearchResults([]);
@@ -73,15 +76,18 @@ function App() {
         setSearchResults(result.results);
       } else {
         setSearchResults([]);
+        setError({ type: 'error', message: result.error || 'Search failed' });
       }
-    } catch (error) {
+    } catch (err) {
       setSearchResults([]);
+      setError({ type: 'error', message: 'An error occurred while searching' });
     } finally {
       setIsLoading(false);
     }
   }, [selectedDrive]);
 
   const handleSelectProject = async (project) => {
+    setError(null);
     try {
       await window.electronAPI.openFolder(project.path);
       
@@ -95,8 +101,8 @@ function App() {
       if (result.success) {
         setRecentProjects(result.projects);
       }
-    } catch (error) {
-      console.error('Error opening folder:', error);
+    } catch (err) {
+      setError({ type: 'error', message: 'Failed to open project folder' });
     }
   };
 
@@ -119,6 +125,7 @@ function App() {
           <Typography variant="h5" component="h1" gutterBottom>
             Project Finder
           </Typography>
+          <ErrorAlert error={error} onClose={() => setError(null)} />
           <DriveSelector
             selectedDrive={selectedDrive}
             onDriveChange={handleDriveChange}
