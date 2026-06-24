@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Container from '@mui/material/Container';
@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import DriveSelector from './components/DriveSelector';
 import SearchInput from './components/SearchInput';
 import SearchResults from './components/SearchResults';
+import RecentProjects from './components/RecentProjects';
 
 const theme = createTheme({
   palette: {
@@ -27,6 +28,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [recentProjects, setRecentProjects] = useState([]);
 
   const formatHint = useMemo(() => {
     if (selectedDrive === 'G:' || selectedDrive === 'R:') {
@@ -34,6 +36,21 @@ function App() {
     }
     return 'Format: YYYY-NNN or YY-NNNNN';
   }, [selectedDrive]);
+
+  useEffect(() => {
+    loadRecentProjects();
+  }, []);
+
+  const loadRecentProjects = async () => {
+    try {
+      const result = await window.electronAPI.getRecentProjects();
+      if (result.success) {
+        setRecentProjects(result.projects);
+      }
+    } catch (error) {
+      console.error('Error loading recent projects:', error);
+    }
+  };
 
   const handleDriveChange = (drive) => {
     setSelectedDrive(drive);
@@ -67,8 +84,30 @@ function App() {
   const handleSelectProject = async (project) => {
     try {
       await window.electronAPI.openFolder(project.path);
+      
+      // Add to recent projects
+      const result = await window.electronAPI.addRecentProject({
+        path: project.path,
+        name: project.name,
+        drive: selectedDrive
+      });
+      
+      if (result.success) {
+        setRecentProjects(result.projects);
+      }
     } catch (error) {
       console.error('Error opening folder:', error);
+    }
+  };
+
+  const handleClearRecent = async () => {
+    try {
+      const result = await window.electronAPI.clearRecentProjects();
+      if (result.success) {
+        setRecentProjects(result.projects);
+      }
+    } catch (error) {
+      console.error('Error clearing recent projects:', error);
     }
   };
 
@@ -93,6 +132,11 @@ function App() {
             results={searchResults}
             onSelect={handleSelectProject}
             isLoading={isLoading}
+          />
+          <RecentProjects
+            recentProjects={recentProjects}
+            onSelect={handleSelectProject}
+            onClear={handleClearRecent}
           />
         </Box>
       </Container>
