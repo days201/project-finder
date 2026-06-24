@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import FolderIcon from '@mui/icons-material/Folder';
 import ListItemIcon from '@mui/material/ListItemIcon';
 
-function SearchResults({ results, onSelect, isLoading }) {
+function SearchResults({ results, onSelect, isLoading, selectedIndex }) {
   if (isLoading) {
     return (
       <Paper sx={{ mb: 2, p: 1 }}>
@@ -28,7 +28,10 @@ function SearchResults({ results, onSelect, isLoading }) {
       <List dense>
         {results.slice(0, 10).map((project, index) => (
           <ListItem key={index} disablePadding>
-            <ListItemButton onClick={() => onSelect(project)}>
+            <ListItemButton
+              onClick={() => onSelect(project)}
+              selected={index === selectedIndex}
+            >
               <ListItemIcon>
                 <FolderIcon color="primary" />
               </ListItemIcon>

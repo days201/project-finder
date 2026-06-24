@@ -12,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Tooltip from '@mui/material/Tooltip';
 import Box from '@mui/material/Box';
 
-function RecentProjects({ recentProjects, onSelect, onClear }) {
+function RecentProjects({ recentProjects, onSelect, onClear, selectedIndex }) {
   if (!recentProjects || recentProjects.length === 0) {
     return null;
   }
@@ -32,7 +32,10 @@ function RecentProjects({ recentProjects, onSelect, onClear }) {
       <List dense>
         {recentProjects.map((project, index) => (
           <ListItem key={index} disablePadding>
-            <ListItemButton onClick={() => onSelect(project)}>
+            <ListItemButton
+              onClick={() => onSelect(project)}
+              selected={index === selectedIndex}
+            >
               <ListItemIcon>
                 <HistoryIcon color="action" />
               </ListItemIcon>
