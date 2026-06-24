@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import DriveSelector from './components/DriveSelector';
 
 const theme = createTheme({
   palette: {
@@ -20,6 +21,12 @@ const theme = createTheme({
 });
 
 function App() {
+  const [selectedDrive, setSelectedDrive] = useState('G:');
+
+  const handleDriveChange = (drive) => {
+    setSelectedDrive(drive);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -28,6 +35,10 @@ function App() {
           <Typography variant="h5" component="h1" gutterBottom>
             Project Finder
           </Typography>
+          <DriveSelector
+            selectedDrive={selectedDrive}
+            onDriveChange={handleDriveChange}
+          />
         </Box>
       </Container>
     </ThemeProvider>
