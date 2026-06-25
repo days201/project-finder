@@ -23,14 +23,24 @@ function createWindow() {
     autoHideMenuBar: true
   });
 
-  mainWindow.loadFile('src/renderer/index.html');
+  mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
   
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  // Pre-warm the default drive's directory cache so the first typed search
+  // doesn't have to traverse the whole tree from scratch. Fire-and-forget:
+  // it runs against the same in-process searchEngine cache that search() uses
+  // via getCachedDirectories(), so any directory it has finished walking by
+  // the time the user pauses typing will return instantly during the search.
+  searchEngine.warmCache('G:').catch((err) => {
+    console.error('Initial cache warm-up failed for G::', err.message);
+  });
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -54,17 +64,6 @@ ipcMain.handle('open-folder', async (event, folderPath) => {
   }
 });
 
-// IPC handler for checking drive accessibility
-ipcMain.handle('check-drive', async (event, drive) => {
-  const fs = require('fs').promises;
-  try {
-    await fs.access(drive);
-    return { accessible: true };
-  } catch (error) {
-    return { accessible: false, error: error.message };
-  }
-});
-
 // IPC handler for searching projects
 ipcMain.handle('search-projects', async (event, drive, query) => {
   try {
@@ -79,6 +78,18 @@ ipcMain.handle('search-projects', async (event, drive, query) => {
 ipcMain.handle('clear-cache', async () => {
   searchEngine.clearCache();
   return { success: true };
+});
+
+// IPC handler for pre-warming a drive's directory cache. The renderer invokes
+// this fire-and-forget on drive changes so the next search() benefits from a
+// warm cache. Returns success once the traversal completes (or on error).
+ipcMain.handle('warm-cache', async (event, drive) => {
+  try {
+    await searchEngine.warmCache(drive);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
 // IPC handler for getting recent projects
