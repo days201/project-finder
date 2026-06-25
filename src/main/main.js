@@ -46,17 +46,21 @@ app.whenReady().then(async () => {
   if (!index) index = await indexStore.loadBaseline();
   if (index) searchEngine.loadIndex(index);
 
-  // Background re-sync all drives; persist the fresh index when done.
-  sendSyncStatus('syncing');
-  searchEngine.warmAll()
-    .then(async () => {
-      await indexStore.savePersisted(userDataDir, searchEngine.serializeIndex());
-      sendSyncStatus('done');
-    })
-    .catch((err) => {
-      console.error('Background sync failed:', err.message);
-      sendSyncStatus('error');
-    });
+  // Gate the sync kickoff on did-finish-load so the renderer's sync-status
+  // listener is registered before we emit 'syncing' (otherwise the event
+  // fires during loadFile and is dropped).
+  mainWindow.webContents.once('did-finish-load', () => {
+    sendSyncStatus('syncing');
+    searchEngine.warmAll()
+      .then(async () => {
+        await indexStore.savePersisted(userDataDir, searchEngine.serializeIndex());
+        sendSyncStatus('done');
+      })
+      .catch((err) => {
+        console.error('Background sync failed:', err.message);
+        sendSyncStatus('error');
+      });
+  });
 });
 
 app.on('window-all-closed', () => {
