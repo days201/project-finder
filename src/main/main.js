@@ -32,11 +32,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
-  // Pre-warm the default drive's directory cache so the first typed search
-  // doesn't have to traverse the whole tree from scratch. Fire-and-forget:
-  // it runs against the same in-process searchEngine cache that search() uses
-  // via getCachedDirectories(), so any directory it has finished walking by
-  // the time the user pauses typing will return instantly during the search.
+  // Pre-warm the default drive cache so the first search is fast.
   searchEngine.warmCache('G:').catch((err) => {
     console.error('Initial cache warm-up failed for G::', err.message);
   });
@@ -74,9 +70,7 @@ ipcMain.handle('search-projects', async (event, drive, query) => {
   }
 });
 
-// IPC handler for pre-warming a drive's directory cache. The renderer invokes
-// this fire-and-forget on drive changes so the next search() benefits from a
-// warm cache. Returns success once the traversal completes (or on error).
+// IPC handler for pre-warming a drive's directory cache (fire-and-forget from renderer).
 ipcMain.handle('warm-cache', async (event, drive) => {
   try {
     await searchEngine.warmCache(drive);
