@@ -198,4 +198,57 @@ describe('SearchEngine.warmAll', () => {
     expect(readDirs).toContain('J:\\');
     expect(readDirs).toContain('R:\\Projects');
   });
+
+  test('warmAll re-reads disk and overwrites loaded entries (force-refresh)', async () => {
+    const engine = new SearchEngine();
+    // First, populate cache via loadIndex with stale data.
+    engine.loadIndex({
+      'G:\\': { directories: ['2024'] },
+      'G:\\2024': { directories: ['1000'] },
+      'G:\\2024\\1000': { directories: ['OLD-PROJECT'] },
+      'J:\\': { directories: ['2025'] },
+      'J:\\2025': { directories: ['OLD-J-PROJECT'] },
+      'R:\\Projects': { directories: ['2024'] },
+      'R:\\Projects\\2024': { directories: ['3400'] },
+      'R:\\Projects\\2024\\3400': { directories: ['OLD-R-PROJECT'] },
+    });
+
+    // Now stub getDirectories to return DIFFERENT (fresh) data.
+    const readDirs = [];
+    engine.getDirectories = async (dirPath) => {
+      readDirs.push(dirPath);
+      return {
+        'G:\\': ['2024', '2025'],
+        'G:\\2024': ['1000'],
+        'G:\\2024\\1000': ['NEW-PROJECT'],
+        'G:\\2025': ['3000'],
+        'G:\\2025\\3000': ['3001-05'],
+        'J:\\': ['2025'],
+        'J:\\2025': ['NEW-J-PROJECT'],
+        'R:\\Projects': ['2024'],
+        'R:\\Projects\\2024': ['3400'],
+        'R:\\Projects\\2024\\3400': ['NEW-R-PROJECT'],
+      }[dirPath] || [];
+    };
+
+    await engine.warmAll();
+
+    // warmAll must have re-read disk for every path (force-refresh).
+    expect(readDirs).toContain('G:\\');
+    expect(readDirs).toContain('G:\\2024\\1000');
+    expect(readDirs).toContain('J:\\2025');
+    expect(readDirs).toContain('R:\\Projects\\2024\\3400');
+
+    // And the cache must now hold the FRESH data, not the stale loaded data.
+    const serialized = engine.serializeIndex();
+    expect(serialized['G:\\2024\\1000'].directories).toContain('NEW-PROJECT');
+    expect(serialized['G:\\2024\\1000'].directories).not.toContain('OLD-PROJECT');
+    expect(serialized['J:\\2025'].directories).toContain('NEW-J-PROJECT');
+    expect(serialized['R:\\Projects\\2024\\3400'].directories).toContain('NEW-R-PROJECT');
+
+    // And a search must return the fresh data.
+    const results = await engine.search('G:', 'NEW');
+    expect(results).toHaveLength(1);
+    expect(results[0].name).toBe('NEW-PROJECT');
+  });
 });

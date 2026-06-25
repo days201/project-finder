@@ -24,10 +24,12 @@ class SearchEngine {
     }
   }
 
-  async getCachedDirectories(dirPath) {
-    const cached = this.cache.get(dirPath);
-    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-      return cached.directories;
+  async getCachedDirectories(dirPath, force = false) {
+    if (!force) {
+      const cached = this.cache.get(dirPath);
+      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+        return cached.directories;
+      }
     }
 
     const directories = await this.getDirectories(dirPath);
@@ -38,32 +40,32 @@ class SearchEngine {
     return directories;
   }
 
-  async traverse(basePath, yearFilter, levels) {
-    const years = await this.getCachedDirectories(basePath);
+  async traverse(basePath, yearFilter, levels, force = false) {
+    const years = await this.getCachedDirectories(basePath, force);
     for (const year of years) {
       if (yearFilter && !yearFilter.test(year)) continue;
       const yearPath = path.join(basePath, year);
       if (levels === 3) {
-        const thousands = await this.getCachedDirectories(yearPath);
+        const thousands = await this.getCachedDirectories(yearPath, force);
         for (const thousand of thousands) {
           const thousandPath = path.join(yearPath, thousand);
-          await this.getCachedDirectories(thousandPath);
+          await this.getCachedDirectories(thousandPath, force);
         }
       } else {
-        await this.getCachedDirectories(yearPath);
+        await this.getCachedDirectories(yearPath, force);
       }
     }
   }
 
-  async warmCache(drive) {
+  async warmCache(drive, force = false) {
     const config = DRIVE_CONFIG[drive];
     if (!config) return;
-    return this.traverse(config.basePath, config.yearFilter, config.levels);
+    return this.traverse(config.basePath, config.yearFilter, config.levels, force);
   }
 
   async warmAll() {
     for (const drive of Object.keys(DRIVE_CONFIG)) {
-      await this.warmCache(drive);
+      await this.warmCache(drive, true);
     }
   }
 
