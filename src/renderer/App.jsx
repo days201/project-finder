@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Container from '@mui/material/Container';
@@ -33,12 +33,7 @@ function App() {
   const [error, setError] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
 
-  const formatHint = useMemo(() => {
-    if (selectedDrive === 'G:' || selectedDrive === 'R:') {
-      return 'Format: NNNN-XX';
-    }
-    return 'Format: YYYY-NNN or YY-NNNNN';
-  }, [selectedDrive]);
+  const formatHint = (selectedDrive === 'G:' || selectedDrive === 'R:') ? 'Format: NNNN-XX' : 'Format: YYYY-NNN or YY-NNNNN';
 
   useEffect(() => {
     loadRecentProjects();
