@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "build": "webpack --mode production",
-    "dist": "npm run build && electron-builder",
+    "build:index": "node src/main/build-index.js",
+    "dist": "npm run build:index && npm run build && electron-builder",
     "test": "jest"
   },
   "keywords": [],
