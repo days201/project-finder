@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const SearchEngine = require('./search');
 const RecentProjectsStorage = require('./storage');
+const indexStore = require('./indexStore');
 
 const searchEngine = new SearchEngine();
 const storage = new RecentProjectsStorage();
@@ -24,18 +25,38 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
-  
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
-app.whenReady().then(() => {
+function sendSyncStatus(state) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('sync-status', state);
+  }
+}
+
+app.whenReady().then(async () => {
   createWindow();
-  // Pre-warm the default drive cache so the first search is fast.
-  searchEngine.warmCache('G:').catch((err) => {
-    console.error('Initial cache warm-up failed for G::', err.message);
-  });
+
+  // Load persisted or bundled index so the first search is instant.
+  const userDataDir = app.getPath('userData');
+  let index = await indexStore.loadPersisted(userDataDir);
+  if (!index) index = await indexStore.loadBaseline();
+  if (index) searchEngine.loadIndex(index);
+
+  // Background re-sync all drives; persist the fresh index when done.
+  sendSyncStatus('syncing');
+  searchEngine.warmAll()
+    .then(async () => {
+      await indexStore.savePersisted(userDataDir, searchEngine.serializeIndex());
+      sendSyncStatus('done');
+    })
+    .catch((err) => {
+      console.error('Background sync failed:', err.message);
+      sendSyncStatus('error');
+    });
 });
 
 app.on('window-all-closed', () => {
