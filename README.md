@@ -47,3 +47,5 @@ npm run dist
 ```
 
 The portable .exe will be created in the `dist` folder.
+
+`npm run dist` regenerates the bundled drive index (`npm run build:index`) and therefore **requires live access to the G:, J:, and R: shared drives** — run it on a machine connected to the company network. To package with the existing committed baseline instead (skipping re-indexing), use `npm run dist:skip-index`.
