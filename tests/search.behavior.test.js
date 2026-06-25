@@ -121,3 +121,81 @@ describe('SearchEngine.warmCache', () => {
     await engine.warmCache('Z:');
   });
 });
+
+describe('SearchEngine.serializeIndex / loadIndex', () => {
+  test('serializeIndex returns directories keyed by path, without timestamps', async () => {
+    const engine = new SearchEngine();
+    stubDirectories(engine, {
+      'G:\\': ['2024'],
+      'G:\\2024': ['1000'],
+      'G:\\2024\\1000': ['1002-27'],
+    });
+    await engine.warmCache('G:');
+
+    const serialized = engine.serializeIndex();
+    expect(serialized['G:\\'].directories).toEqual(['2024']);
+    expect(serialized['G:\\2024\\1000'].directories).toEqual(['1002-27']);
+    expect(serialized['G:\\']).not.toHaveProperty('timestamp');
+  });
+
+  test('loadIndex populates cache so search works without touching the filesystem', async () => {
+    const engine = new SearchEngine();
+    const calls = [];
+    engine.getDirectories = async (p) => { calls.push(p); return []; };
+
+    engine.loadIndex({
+      'G:\\': { directories: ['2024'] },
+      'G:\\2024': { directories: ['1000'] },
+      'G:\\2024\\1000': { directories: ['1002-27'] },
+    });
+
+    const results = await engine.search('G:', '1002');
+    expect(results).toEqual([
+      { path: 'G:\\2024\\1000\\1002-27', name: '1002-27', year: '2024' },
+    ]);
+    expect(calls).toEqual([]);
+  });
+
+  test('serializeIndex round-trips through loadIndex', async () => {
+    const a = new SearchEngine();
+    stubDirectories(a, {
+      'G:\\': ['2024'],
+      'G:\\2024': ['1000'],
+      'G:\\2024\\1000': ['1002-27'],
+    });
+    await a.warmCache('G:');
+    const serialized = a.serializeIndex();
+
+    const b = new SearchEngine();
+    b.getDirectories = jest.fn(); // should never be called
+    b.loadIndex(serialized);
+    const results = await b.search('G:', '1002');
+    expect(results).toHaveLength(1);
+    expect(b.getDirectories).not.toHaveBeenCalled();
+  });
+});
+
+describe('SearchEngine.warmAll', () => {
+  test('warms every configured drive', async () => {
+    const engine = new SearchEngine();
+    const readDirs = [];
+    engine.getDirectories = async (dirPath) => {
+      readDirs.push(dirPath);
+      return {
+        'G:\\': ['2024'],
+        'G:\\2024': ['1000'],
+        'G:\\2024\\1000': ['1002-27'],
+        'J:\\': ['2025'],
+        'J:\\2025': ['26-00041'],
+        'R:\\Projects': ['2024'],
+        'R:\\Projects\\2024': ['3400'],
+        'R:\\Projects\\2024\\3400': ['3459-200'],
+      }[dirPath] || [];
+    };
+
+    await engine.warmAll();
+    expect(readDirs).toContain('G:\\');
+    expect(readDirs).toContain('J:\\');
+    expect(readDirs).toContain('R:\\Projects');
+  });
+});

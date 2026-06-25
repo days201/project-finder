@@ -61,6 +61,27 @@ class SearchEngine {
     return this.traverse(config.basePath, config.yearFilter, config.levels);
   }
 
+  async warmAll() {
+    for (const drive of Object.keys(DRIVE_CONFIG)) {
+      await this.warmCache(drive);
+    }
+  }
+
+  serializeIndex() {
+    const out = {};
+    for (const [dirPath, entry] of this.cache) {
+      out[dirPath] = { directories: entry.directories };
+    }
+    return out;
+  }
+
+  loadIndex(obj) {
+    const now = Date.now();
+    for (const [dirPath, entry] of Object.entries(obj)) {
+      this.cache.set(dirPath, { directories: entry.directories, timestamp: now });
+    }
+  }
+
   async search(drive, query) {
     if (!query || query.trim() === '') {
       return [];
