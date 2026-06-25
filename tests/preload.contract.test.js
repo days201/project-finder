@@ -13,11 +13,16 @@ test('electronAPI exposes exactly the kept IPC surface', () => {
       'addRecentProject',
       'clearRecentProjects',
       'getRecentProjects',
+      'onSyncStatus',
       'openFolder',
       'searchProjects',
       'warmCache',
     ].sort()
   );
+});
+
+test('onSyncStatus is a function', () => {
+  expect(typeof exposed.onSyncStatus).toBe('function');
 });
 
 test('electronAPI does NOT expose checkDrive', () => {
