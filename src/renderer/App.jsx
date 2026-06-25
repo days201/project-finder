@@ -9,6 +9,7 @@ import SearchInput from './components/SearchInput';
 import SearchResults from './components/SearchResults';
 import RecentProjects from './components/RecentProjects';
 import ErrorAlert from './components/ErrorAlert';
+import SyncIndicator from './components/SyncIndicator';
 
 const theme = createTheme({
   palette: {
@@ -32,11 +33,18 @@ function App() {
   const [recentProjects, setRecentProjects] = useState([]);
   const [error, setError] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [syncStatus, setSyncStatus] = useState('done');
 
   const formatHint = (selectedDrive === 'G:' || selectedDrive === 'R:') ? 'Format: NNNN-XX' : 'Format: YYYY-NNN or YY-NNNNN';
 
   useEffect(() => {
     loadRecentProjects();
+  }, []);
+
+  // Subscribe to background drive sync status.
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.onSyncStatus((state) => setSyncStatus(state));
+    return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
   // Reset selectedIndex when search results or recent projects change
@@ -215,6 +223,7 @@ function App() {
             onClear={handleClearRecent}
             selectedIndex={searchResults.length === 0 ? selectedIndex : -1}
           />
+          <SyncIndicator status={syncStatus} />
         </Box>
       </Container>
     </ThemeProvider>
