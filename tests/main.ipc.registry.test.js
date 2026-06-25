@@ -29,3 +29,7 @@ test('kept IPC channels remain registered', () => {
     expect(channels).toContain(ch);
   }
 });
+
+test('clear-cache IPC channel is NOT registered', () => {
+  expect(handleCalls.map(c => c.channel)).not.toContain('clear-cache');
+});

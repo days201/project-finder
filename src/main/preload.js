@@ -3,7 +3,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (path) => ipcRenderer.invoke('open-folder', path),
   searchProjects: (drive, query) => ipcRenderer.invoke('search-projects', drive, query),
-  clearCache: () => ipcRenderer.invoke('clear-cache'),
   warmCache: (drive) => ipcRenderer.invoke('warm-cache', drive),
   getRecentProjects: () => ipcRenderer.invoke('get-recent-projects'),
   addRecentProject: (project) => ipcRenderer.invoke('add-recent-project', project),

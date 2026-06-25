@@ -11,7 +11,6 @@ test('electronAPI exposes exactly the kept IPC surface', () => {
   expect(Object.keys(exposed).sort()).toEqual(
     [
       'addRecentProject',
-      'clearCache',
       'clearRecentProjects',
       'getRecentProjects',
       'openFolder',
@@ -23,4 +22,8 @@ test('electronAPI exposes exactly the kept IPC surface', () => {
 
 test('electronAPI does NOT expose checkDrive', () => {
   expect(exposed).not.toHaveProperty('checkDrive');
+});
+
+test('electronAPI does NOT expose clearCache', () => {
+  expect(exposed).not.toHaveProperty('clearCache');
 });

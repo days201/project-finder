@@ -74,12 +74,6 @@ ipcMain.handle('search-projects', async (event, drive, query) => {
   }
 });
 
-// IPC handler for clearing search cache
-ipcMain.handle('clear-cache', async () => {
-  searchEngine.clearCache();
-  return { success: true };
-});
-
 // IPC handler for pre-warming a drive's directory cache. The renderer invokes
 // this fire-and-forget on drive changes so the next search() benefits from a
 // warm cache. Returns success once the traversal completes (or on error).

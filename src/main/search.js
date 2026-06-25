@@ -32,6 +32,62 @@ class SearchEngine {
     return directories;
   }
 
+  // Walks the G: drive tree (year -> thousand -> projects) populating the cache
+  // without filtering. Used by warmCache() so subsequent searches hit the cache.
+  async traverseGDrive() {
+    const basePath = 'G:\\';
+    const years = await this.getCachedDirectories(basePath);
+    for (const year of years) {
+      if (!/^\d{4}$/.test(year)) continue;
+      const yearPath = path.join(basePath, year);
+      const thousands = await this.getCachedDirectories(yearPath);
+      for (const thousand of thousands) {
+        const thousandPath = path.join(yearPath, thousand);
+        await this.getCachedDirectories(thousandPath);
+      }
+    }
+  }
+
+  async traverseJDrive() {
+    const basePath = 'J:\\';
+    const years = await this.getCachedDirectories(basePath);
+    for (const year of years) {
+      const yearPath = path.join(basePath, year);
+      await this.getCachedDirectories(yearPath);
+    }
+  }
+
+  async traverseRDrive() {
+    const basePath = 'R:\\Projects';
+    const years = await this.getCachedDirectories(basePath);
+    for (const year of years) {
+      if (!/^\d{4}$/.test(year)) continue;
+      const yearPath = path.join(basePath, year);
+      const thousands = await this.getCachedDirectories(yearPath);
+      for (const thousand of thousands) {
+        const thousandPath = path.join(yearPath, thousand);
+        await this.getCachedDirectories(thousandPath);
+      }
+    }
+  }
+
+  // Pre-warm the directory cache for a drive so the next search() is fast.
+  // Safe to call multiple times and to run concurrently with search() on the
+  // same drive; getCachedDirectories() only writes each dir once per timeout
+  // window, so concurrent callers just duplicate the readdir work.
+  async warmCache(drive) {
+    switch (drive) {
+      case 'G:':
+        return this.traverseGDrive();
+      case 'J:':
+        return this.traverseJDrive();
+      case 'R:':
+        return this.traverseRDrive();
+      default:
+        return;
+    }
+  }
+
   async searchGDrive(query) {
     const results = [];
     const basePath = 'G:\\';
@@ -133,10 +189,6 @@ class SearchEngine {
       default:
         return [];
     }
-  }
-
-  clearCache() {
-    this.cache.clear();
   }
 }
 
