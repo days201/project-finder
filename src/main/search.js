@@ -1,6 +1,12 @@
 const fs = require('fs').promises;
 const path = require('path');
 
+const DRIVE_CONFIG = {
+  'G:': { basePath: 'G:\\', yearFilter: /^\d{4}$/, levels: 3 },
+  'J:': { basePath: 'J:\\', yearFilter: null, levels: 2 },
+  'R:': { basePath: 'R:\\Projects', yearFilter: /^\d{4}$/, levels: 3 },
+};
+
 class SearchEngine {
   constructor() {
     this.cache = new Map();
@@ -32,146 +38,27 @@ class SearchEngine {
     return directories;
   }
 
-  // Walks the G: drive tree (year -> thousand -> projects) populating the cache
-  // without filtering. Used by warmCache() so subsequent searches hit the cache.
-  async traverseGDrive() {
-    const basePath = 'G:\\';
+  async traverse(basePath, yearFilter, levels) {
     const years = await this.getCachedDirectories(basePath);
     for (const year of years) {
-      if (!/^\d{4}$/.test(year)) continue;
+      if (yearFilter && !yearFilter.test(year)) continue;
       const yearPath = path.join(basePath, year);
-      const thousands = await this.getCachedDirectories(yearPath);
-      for (const thousand of thousands) {
-        const thousandPath = path.join(yearPath, thousand);
-        await this.getCachedDirectories(thousandPath);
+      if (levels === 3) {
+        const thousands = await this.getCachedDirectories(yearPath);
+        for (const thousand of thousands) {
+          const thousandPath = path.join(yearPath, thousand);
+          await this.getCachedDirectories(thousandPath);
+        }
+      } else {
+        await this.getCachedDirectories(yearPath);
       }
     }
   }
 
-  async traverseJDrive() {
-    const basePath = 'J:\\';
-    const years = await this.getCachedDirectories(basePath);
-    for (const year of years) {
-      const yearPath = path.join(basePath, year);
-      await this.getCachedDirectories(yearPath);
-    }
-  }
-
-  async traverseRDrive() {
-    const basePath = 'R:\\Projects';
-    const years = await this.getCachedDirectories(basePath);
-    for (const year of years) {
-      if (!/^\d{4}$/.test(year)) continue;
-      const yearPath = path.join(basePath, year);
-      const thousands = await this.getCachedDirectories(yearPath);
-      for (const thousand of thousands) {
-        const thousandPath = path.join(yearPath, thousand);
-        await this.getCachedDirectories(thousandPath);
-      }
-    }
-  }
-
-  // Pre-warm the directory cache for a drive so the next search() is fast.
-  // Safe to call multiple times and to run concurrently with search() on the
-  // same drive; getCachedDirectories() only writes each dir once per timeout
-  // window, so concurrent callers just duplicate the readdir work.
   async warmCache(drive) {
-    switch (drive) {
-      case 'G:':
-        return this.traverseGDrive();
-      case 'J:':
-        return this.traverseJDrive();
-      case 'R:':
-        return this.traverseRDrive();
-      default:
-        return;
-    }
-  }
-
-  async searchGDrive(query) {
-    const results = [];
-    const basePath = 'G:\\';
-    
-    const years = await this.getCachedDirectories(basePath);
-    
-    for (const year of years) {
-      if (!/^\d{4}$/.test(year)) continue;
-      
-      const yearPath = path.join(basePath, year);
-      const thousands = await this.getCachedDirectories(yearPath);
-      
-      for (const thousand of thousands) {
-        const thousandPath = path.join(yearPath, thousand);
-        const projects = await this.getCachedDirectories(thousandPath);
-        
-        for (const project of projects) {
-          if (project.toLowerCase().includes(query.toLowerCase())) {
-            results.push({
-              path: path.join(thousandPath, project),
-              name: project,
-              year: year
-            });
-          }
-        }
-      }
-    }
-    
-    return results;
-  }
-
-  async searchJDrive(query) {
-    const results = [];
-    const basePath = 'J:\\';
-    
-    const years = await this.getCachedDirectories(basePath);
-    
-    for (const year of years) {
-      const yearPath = path.join(basePath, year);
-      const projects = await this.getCachedDirectories(yearPath);
-      
-      for (const project of projects) {
-        if (project.toLowerCase().includes(query.toLowerCase())) {
-          results.push({
-            path: path.join(yearPath, project),
-            name: project,
-            year: year.replace('_', '')
-          });
-        }
-      }
-    }
-    
-    return results;
-  }
-
-  async searchRDrive(query) {
-    const results = [];
-    const basePath = 'R:\\Projects';
-    
-    const years = await this.getCachedDirectories(basePath);
-    
-    for (const year of years) {
-      if (!/^\d{4}$/.test(year)) continue;
-      
-      const yearPath = path.join(basePath, year);
-      const thousands = await this.getCachedDirectories(yearPath);
-      
-      for (const thousand of thousands) {
-        const thousandPath = path.join(yearPath, thousand);
-        const projects = await this.getCachedDirectories(thousandPath);
-        
-        for (const project of projects) {
-          if (project.toLowerCase().includes(query.toLowerCase())) {
-            results.push({
-              path: path.join(thousandPath, project),
-              name: project,
-              year: year
-            });
-          }
-        }
-      }
-    }
-    
-    return results;
+    const config = DRIVE_CONFIG[drive];
+    if (!config) return;
+    return this.traverse(config.basePath, config.yearFilter, config.levels);
   }
 
   async search(drive, query) {
@@ -179,16 +66,47 @@ class SearchEngine {
       return [];
     }
 
-    switch (drive) {
-      case 'G:':
-        return this.searchGDrive(query);
-      case 'J:':
-        return this.searchJDrive(query);
-      case 'R:':
-        return this.searchRDrive(query);
-      default:
-        return [];
+    const config = DRIVE_CONFIG[drive];
+    if (!config) return [];
+
+    const results = [];
+    const years = await this.getCachedDirectories(config.basePath);
+
+    for (const year of years) {
+      if (config.yearFilter && !config.yearFilter.test(year)) continue;
+
+      const yearPath = path.join(config.basePath, year);
+
+      if (config.levels === 3) {
+        const thousands = await this.getCachedDirectories(yearPath);
+        for (const thousand of thousands) {
+          const thousandPath = path.join(yearPath, thousand);
+          const projects = await this.getCachedDirectories(thousandPath);
+          for (const project of projects) {
+            if (project.toLowerCase().includes(query.toLowerCase())) {
+              results.push({
+                path: path.join(thousandPath, project),
+                name: project,
+                year: year.replace('_', '')
+              });
+            }
+          }
+        }
+      } else {
+        const projects = await this.getCachedDirectories(yearPath);
+        for (const project of projects) {
+          if (project.toLowerCase().includes(query.toLowerCase())) {
+            results.push({
+              path: path.join(yearPath, project),
+              name: project,
+              year: year.replace('_', '')
+            });
+          }
+        }
+      }
     }
+
+    return results;
   }
 }
 
